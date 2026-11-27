@@ -18,9 +18,9 @@ test('package name version license and author are correct', () => {
   assert.equal(packageJson.author, 'draarivpatel-ui');
 });
 
-test('package is zero dependency and zero dev dependency', () => {
+test('package keeps runtime dependencies empty and fast-check development-only', () => {
   assert.deepEqual(packageJson.dependencies, {});
-  assert.deepEqual(packageJson.devDependencies, {});
+  assert.deepEqual(packageJson.devDependencies, { 'fast-check': '4.10.3' });
 });
 
 test('package requires Node eighteen or newer', () => {

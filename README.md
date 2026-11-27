@@ -15,7 +15,7 @@ The renderer is designed for email builders, webhook payload templates, notifica
 npm install templatecage
 ```
 
-Requires Node.js 18 or newer. There are no runtime dependencies and no development dependencies.
+Requires Node.js 18 or newer. There are no runtime dependencies. `fast-check` is a development-only fuzzing dependency.
 
 ## Quick start
 

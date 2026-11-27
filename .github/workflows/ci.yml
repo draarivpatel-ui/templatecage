@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -16,8 +20,12 @@ jobs:
         node: [18, 20, 22, 24]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
       - name: Run deterministic test suite
@@ -32,6 +40,26 @@ jobs:
       - name: Run CLI smoke test
         shell: bash
         run: node scripts/cli-smoke.mjs
-      - name: Verify package tarball contents
+      - name: Audit package tarball
         shell: bash
         run: npm pack --dry-run
+
+  fuzz:
+    name: property fuzz
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Install development dependencies
+        run: npm ci --ignore-scripts
+      - name: Run property fuzz tests
+        run: npm run test:fuzz

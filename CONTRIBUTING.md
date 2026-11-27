@@ -1,6 +1,6 @@
 # Contributing
 
-This package is intentionally zero-dependency. Do not add runtime dependencies or development dependencies.
+This package is intentionally zero-dependency at runtime. `fast-check` is the only development dependency and is used only for property-based fuzz tests.
 
 ## Required checks
 
