@@ -1,0 +1,76 @@
+{
+  "name": "templatecage",
+  "version": "1.0.0",
+  "description": "Zero-dependency SSTI firewall auditing and safe sandboxed data-only template rendering",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/draarivpatel-ui/templatecage.git"
+  },
+  "homepage": "https://github.com/draarivpatel-ui/templatecage#readme",
+  "bugs": {
+    "url": "https://github.com/draarivpatel-ui/templatecage/issues"
+  },
+  "type": "module",
+  "main": "./cjs/index.cjs",
+  "module": "./src/index.mjs",
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/index.mjs",
+      "require": "./cjs/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "templatecage": "bin/templatecage.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "cjs",
+    "types",
+    "examples",
+    "README.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:cjs": "node scripts/build-cjs.mjs",
+    "check:cjs": "node scripts/build-cjs.mjs --check",
+    "check:types": "node scripts/check-types.mjs",
+    "smoke": "node scripts/cli-smoke.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "prepack": "node scripts/build-cjs.mjs --check"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "security",
+    "ssti",
+    "template-injection",
+    "template-security",
+    "sandbox",
+    "mustache",
+    "handlebars",
+    "jinja2",
+    "nunjucks",
+    "ejs",
+    "pug",
+    "liquid",
+    "xss-prevention",
+    "prototype-pollution",
+    "rce-prevention",
+    "zero-dependency",
+    "nodejs"
+  ],
+  "author": "draarivpatel-ui",
+  "license": "MIT",
+  "sideEffects": false,
+  "dependencies": {},
+  "devDependencies": {}
+}
