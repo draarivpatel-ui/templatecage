@@ -367,3 +367,112 @@ for (const [template, dialect] of dialectsExpectations) {
     assert.equal(report.dialects.includes(dialect), true);
   });
 }
+
+const whitespaceControlPayloads = [
+  ['dash include', '{%- include "x.html" %}', CODE.FILE_INCLUSION],
+  ['tilde include', '{%~ include "x.html" %}', CODE.FILE_INCLUSION],
+  ['dash extends', '{%- extends "base.html" %}', CODE.FILE_INCLUSION],
+  ['tilde set', '{%~ set x = 1 %}', CODE.DANGEROUS_DIRECTIVE]
+];
+
+for (const [name, payload, code] of whitespaceControlPayloads) {
+  test('audit detects whitespace controlled directive ' + name, () => {
+    const report = auditTemplate(payload, 'audit');
+    assert.equal(report.safe, false);
+    assertHasCode(report, code);
+  });
+}
+
+const operatorProbePayloads = [
+  ['numeric subtraction', '{{7-7}}'],
+  ['bitwise xor', '{{7^7}}'],
+  ['numeric bitwise or', '{{7|7}}'],
+  ['bitwise not or whitespace ambiguity', '{{~7}}']
+];
+
+for (const [name, payload] of operatorProbePayloads) {
+  test('audit blocks operator or whitespace ambiguity probe ' + name, () => {
+    const report = auditTemplate(payload, 'audit');
+    assert.equal(report.safe, false, codesText(report));
+  });
+}
+
+const foreignDialectPayloads = [
+  ['pug unescaped output', '!{process.env}', CODE.RAW_HTML],
+  ['freemarker assign', '<#assign x = "constructor">', CODE.DANGEROUS_DIRECTIVE],
+  ['freemarker include', '<#include "secret.txt">', CODE.FILE_INCLUSION],
+  ['freemarker macro invocation', '<@macro />', CODE.CODE_EXECUTION],
+  ['velocity set', '#set($x = $runtime.exec("id"))', CODE.DANGEROUS_DIRECTIVE],
+  ['velocity parse', '#parse("secret.vm")', CODE.FILE_INCLUSION],
+  ['smarty php', '{php}system("id");{/php}', CODE.CODE_EXECUTION],
+  ['smarty variable', '{$smarty.template}', CODE.TEMPLATE_INJECTION],
+  ['thymeleaf selection', '*{user.constructor}', CODE.PROTOTYPE_ACCESS],
+  ['thymeleaf url', '@{javascript:alert(1)}', CODE.TEMPLATE_INJECTION],
+  ['thymeleaf fragment', '~{fragment :: main}', CODE.FILE_INCLUSION],
+  ['ognl expression', '%{1+1}', CODE.TEMPLATE_INJECTION]
+];
+
+for (const [name, payload, code] of foreignDialectPayloads) {
+  test('audit blocks foreign dialect payload ' + name, () => {
+    const report = auditTemplate(payload, 'audit');
+    assert.equal(report.safe, false, codesText(report));
+    assertHasCode(report, code);
+  });
+}
+
+test('audit rejects zero width format characters in identifiers', () => {
+  const payload = '{{ x.constr' + String.fromCharCode(0x200b) + 'uctor }}';
+  const report = auditTemplate(payload, 'audit');
+  assert.equal(report.safe, false);
+  assertHasCode(report, CODE.CONTROL_CHARACTER);
+});
+
+test('audit rejects non BMP Unicode format characters', () => {
+  const payload = '{{ x.constr' + String.fromCodePoint(0xe0001) + 'uctor }}';
+  const report = auditTemplate(payload, 'audit');
+  assert.equal(report.safe, false);
+  assertHasCode(report, CODE.CONTROL_CHARACTER);
+});
+
+const unicodeEvasionPayloads = [
+  ['fullwidth delimiters', '｛｛7*7｝｝'],
+  ['fullwidth constructor', '{{ x.ｃｏｎｓｔｒｕｃｔｏｒ }}'],
+  ['identifier unicode escape', '{{ x.constru\\u0063tor }}'],
+  ['identifier hex escape', '{{ x.constru\\x63tor }}'],
+  ['nested delimiter token split', '{{ x.constr{#x#}uctor }}']
+];
+
+for (const [name, payload] of unicodeEvasionPayloads) {
+  test('audit detects Unicode or delimiter evasion ' + name, () => {
+    const report = auditTemplate(payload, 'audit');
+    assert.equal(report.safe, false, codesText(report));
+    assertHasCode(report, CODE.OBFUSCATED_ACCESS);
+  });
+}
+
+const runtimeEscapeTerms = [
+  ['global', CODE.SANDBOX_ESCAPE],
+  ['module', CODE.SANDBOX_ESCAPE],
+  ['exports', CODE.SANDBOX_ESCAPE]
+];
+
+for (const [term, code] of runtimeEscapeTerms) {
+  test('audit detects runtime escape term ' + term, () => {
+    const report = auditTemplate('{{ x.' + term + ' }}', 'audit');
+    assert.equal(report.safe, false);
+    assertHasCode(report, code);
+  });
+}
+
+test('audit blocks velocity foreach directive regression payload', () => {
+  const report = auditTemplate('#foreach($x in $items)$x#end', 'audit');
+  assert.equal(report.safe, false);
+  assertHasCode(report, CODE.DANGEROUS_DIRECTIVE);
+});
+
+test('audit rejects zero width format characters in prototype identifiers', () => {
+  const payload = '{{ x.__pr' + String.fromCharCode(0x200c) + 'oto__ }}';
+  const report = auditTemplate(payload, 'audit');
+  assert.equal(report.safe, false);
+  assertHasCode(report, CODE.CONTROL_CHARACTER);
+});

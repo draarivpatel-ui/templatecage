@@ -424,3 +424,66 @@ test('filter object value is rejected before filter application', () => {
   };
   expectTemplateError(() => renderTemplate('{{ value | upper }}', { value }), CODE.UNSAFE_VALUE);
 });
+
+const runtimeBlockedSegments = [
+  'globalThis',
+  'global',
+  'process',
+  'mainModule',
+  'module',
+  'exports',
+  'require',
+  'Function',
+  'function',
+  'eval',
+  'Reflect',
+  'Proxy',
+  'child_process',
+  'Buffer',
+  'import',
+  'importMeta',
+  'os',
+  'subprocess'
+];
+
+for (const segment of runtimeBlockedSegments) {
+  test('compile blocks runtime escape path segment ' + segment, () => {
+    expectTemplateError(() => compileTemplate('{{ user.' + segment + ' }}'), CODE.PROTOTYPE_ACCESS);
+  });
+}
+
+test('non enumerable own data property is not visible', () => {
+  const user = {};
+  Object.defineProperty(user, 'secret', {
+    value: 'hidden',
+    enumerable: false
+  });
+  assert.equal(renderTemplate('{{ user.secret }}', { user }), '');
+});
+
+test('class instance field is not visible during traversal', () => {
+  class User {
+    constructor() {
+      this.secret = 'hidden';
+    }
+  }
+  assert.equal(renderTemplate('{{ user.secret }}', { user: new User() }), '');
+});
+
+test('date object fields are not visible during traversal', () => {
+  const user = { created: new Date(0) };
+  assert.equal(renderTemplate('{{ user.created.time }}', { user }), '');
+});
+
+test('default after escapeHtml cannot restore raw html trust', () => {
+  const output = renderTemplate("{{ missing | escapeHtml | default:'<b>x</b>' }}", {});
+  assert.equal(output, '&lt;b&gt;x&lt;/b&gt;');
+});
+
+test('html escaping neutralizes backticks', () => {
+  assert.equal(renderTemplate('{{ value }}', { value: '`' }), '&#96;');
+});
+
+test('truncate filter counts code points without quadratic array conversion', () => {
+  assert.equal(renderTemplate('{{ value | truncate:2 }}', { value: 'a😀bc' }), 'a😀');
+});

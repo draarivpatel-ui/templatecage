@@ -21,7 +21,24 @@ const BLOCKED_PATH_NAMES = new Set([
   '__dict__',
   '__globals__',
   '__builtins__',
-  '__import__'
+  '__import__',
+  'globalthis',
+  'global',
+  'process',
+  'mainmodule',
+  'module',
+  'exports',
+  'require',
+  'function',
+  'eval',
+  'reflect',
+  'proxy',
+  'child_process',
+  'buffer',
+  'import',
+  'importmeta',
+  'os',
+  'subprocess'
 ]);
 
 function syntaxError(message, offset, detail) {

@@ -24,12 +24,14 @@ export function isLineSeparatorCodePoint(codePoint) {
   return codePoint === 0x2028 || codePoint === 0x2029;
 }
 
+const FORMAT_CODE_POINT = /\p{Cf}/u;
+
+export function isFormatCodePoint(codePoint) {
+  return codePoint >= 0x00ad && FORMAT_CODE_POINT.test(String.fromCodePoint(codePoint));
+}
+
 export function isNeutralizedFormatCodePoint(codePoint) {
-  return codePoint === 0x00ad ||
-    (codePoint >= 0x200b && codePoint <= 0x200f) ||
-    codePoint === 0xfeff ||
-    isBidiCodePoint(codePoint) ||
-    isLineSeparatorCodePoint(codePoint);
+  return isFormatCodePoint(codePoint) || isLineSeparatorCodePoint(codePoint);
 }
 
 export function hostileCharacterKind(text, offset) {
@@ -38,6 +40,8 @@ export function hostileCharacterKind(text, offset) {
     if (offset + 1 >= text.length) return 'unpaired-surrogate';
     const next = text.charCodeAt(offset + 1);
     if (next < 0xdc00 || next > 0xdfff) return 'unpaired-surrogate';
+    const codePoint = text.codePointAt(offset);
+    if (isFormatCodePoint(codePoint)) return 'format-character';
     return null;
   }
   if (code >= 0xdc00 && code <= 0xdfff) {
@@ -51,6 +55,7 @@ export function hostileCharacterKind(text, offset) {
   }
   if (isBidiCodePoint(code)) return 'bidi-control';
   if (isLineSeparatorCodePoint(code)) return 'unicode-line-separator';
+  if (isFormatCodePoint(code)) return 'format-character';
   return null;
 }
 

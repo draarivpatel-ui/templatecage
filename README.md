@@ -53,7 +53,11 @@ console.log(renderTemplate('Hello {{ name }}', { name: '<world>' }));
 | Jinja, Twig, Liquid, Nunjucks statements and comments | `{% include "x" %}`, `{# comment #}` |
 | EJS | `<%= value %>`, `<%- raw %>`, `<% code %>` |
 | JavaScript template interpolation | `${ process.env }` |
-| Pug, Jade, and Ruby style interpolation | `#{ value }` |
+| Pug, Jade, and Ruby style interpolation | `#{ value }`, `!{ raw }` |
+| FreeMarker | `<#assign x = 1>`, `<#include "x">`, `<@macro />` |
+| Velocity | `#set($x = 1)`, `#parse("x")` |
+| Thymeleaf and OGNL | `*{ value }`, `@{/x}`, `~{fragment}`, `%{ expr }` |
+| Smarty | `{php}...{/php}`, `{include ...}`, `{$value}` |
 
 The scanner detects:
 
@@ -63,11 +67,11 @@ The scanner detects:
 - Flask and framework globals such as `request`, `config`, `url_for`, `get_flashed_messages`, `cycler`, `joiner`, `namespace`, `lipsum`, and `self`
 - Jinja `attr(...)` and `|attr` indirection
 - process execution modules and primitives such as `subprocess` and `os.popen`
-- string concatenation and hexadecimal or Unicode escape obfuscation such as `['con' + 'structor']`, `"\x63onstructor"`, `"\u0063onstructor"`, and `attr('__cla'~'ss__')`
+- string concatenation, identifier escapes, nested delimiter splitting, compatibility Unicode normalization, and hexadecimal or Unicode escape obfuscation such as `['con' + 'structor']`, `"\x63onstructor"`, `"\u0063onstructor"`, and `attr('__cla'~'ss__')`
 - file inclusion, template inheritance, imports, macros, raw blocks, assignments, and recursion-prone partials
 - raw HTML output through triple mustache, `{{& value }}`, `<%- value %>`, `|safe`, and disabled autoescaping
-- arithmetic and operator-only probes such as `{{7*7}}`
-- unclosed delimiters, excessive tag counts, excessive expression lengths, deep nesting, nested loops, control characters, NUL bytes, bidi controls, Unicode line separators, and unpaired surrogates
+- arithmetic and operator-only probes such as `{{7*7}}`, including whitespace-control forms that can hide directive structure
+- unclosed delimiters, excessive tag counts, excessive expression lengths, deep nesting, nested loops, control characters, NUL bytes, bidi controls, invisible Unicode format characters, Unicode line separators, and unpaired surrogates
 
 The audit layer is deliberately conservative because one template string can be interpreted by more than one downstream engine. A simple data lookup in one dialect can be an executable expression in another. Use the safe renderer when you need a guaranteed data-only interpretation instead of merely auditing text for a known engine.
 
@@ -116,7 +120,7 @@ There are no method calls, helper calls, arbitrary filters, bracket lookups, ari
 
 ### Prototype and data isolation
 
-Property lookup is own-property only. The renderer never intentionally walks the prototype chain. Paths cannot name `__proto__`, `constructor`, `prototype`, `toString`, `valueOf`, object getter or setter members, Python dunder members, or other double-underscore object members.
+Property lookup is own-property and enumerable-data only. The renderer never intentionally walks the prototype chain. Traversal is limited to plain objects, null-prototype objects, and arrays; class instances, dates, and other non-plain objects are opaque data containers rather than property sources. Paths cannot name `__proto__`, `constructor`, `prototype`, `toString`, `valueOf`, object getter or setter members, Python dunder members, Node or runtime escape objects such as `process`, `require`, `module`, `exports`, `Function`, or `eval`, or other double-underscore object members.
 
 Values are read through own property descriptors. Getter properties are rejected without invocation. Function values are rejected without invocation. Proxy objects are rejected before property access where Node can identify them. Only primitive strings, finite numbers, booleans, and bigints render in HTML and text modes. JSON mode renders strings, finite numbers, booleans, and null as JSON values. Objects are never coerced through user-controlled `toString` or `valueOf` methods.
 
@@ -131,7 +135,7 @@ renderTemplate('{{ user.polluted }}', { user: {} }); // empty string
 
 Policy modes are context aware:
 
-- `html` escapes `&`, `<`, `>`, double quote, and single quote in interpolated values.
+- `html` escapes `&`, `<`, `>`, double quote, single quote, and backtick in interpolated values.
 - `text` removes dangerous control, bidi, Unicode separator, and surrogate characters from interpolated values.
 - `json` serializes strings, finite numbers, booleans, and null as JSON values, so a template can write `"message": {{ message }}`.
 

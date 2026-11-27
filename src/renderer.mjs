@@ -9,6 +9,12 @@ import { isBlockedPathSegment, parseSafeExpression, parseSectionTarget } from '.
 const compiledTemplates = new WeakSet();
 const MISSING = Object.freeze({ missing: true });
 
+function isPlainDataContainer(value) {
+  if (Array.isArray(value)) return true;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function compileError(code, message, offset, detail) {
   return new TemplateCageError(code, message, detail, offset);
 }
@@ -221,6 +227,7 @@ function readOwnData(object, key, pathText) {
   if (isBlockedPathSegment(key)) {
     throw new TemplateCageError(CODE.PROTOTYPE_ACCESS, 'template attempted to read a forbidden object member', { path: pathText, key });
   }
+  if (!isPlainDataContainer(object)) return MISSING;
   if (!own(object, key)) return MISSING;
   const descriptor = Object.getOwnPropertyDescriptor(object, key);
   if (!descriptor) return MISSING;
@@ -231,6 +238,7 @@ function readOwnData(object, key, pathText) {
   if (typeof value === 'function') {
     throw new TemplateCageError(CODE.UNSAFE_VALUE, 'template data exposes a function on a requested path', { path: pathText, key });
   }
+  if (!descriptor.enumerable && !(Array.isArray(object) && key === 'length')) return MISSING;
   return value;
 }
 
@@ -307,7 +315,20 @@ function escapeHtmlText(value) {
     else if (character === '>') output += '&gt;';
     else if (character === '"') output += '&quot;';
     else if (character === "'") output += '&#39;';
+    else if (character === '`') output += '&#96;';
     else output += character;
+  }
+  return output;
+}
+
+function truncateCodePoints(text, maximum) {
+  if (maximum === 0) return '';
+  let output = '';
+  let count = 0;
+  for (const character of text) {
+    if (count >= maximum) break;
+    output += character;
+    count += 1;
   }
   return output;
 }
@@ -317,14 +338,17 @@ function applyFilters(value, filters, pathText) {
   let htmlSafe = false;
   for (const filter of filters) {
     if (filter.name === 'default') {
-      if (current === undefined || current === null || current === '') current = filter.argument;
+      if (current === undefined || current === null || current === '') {
+        current = filter.argument;
+        htmlSafe = false;
+      }
       continue;
     }
     const text = primitiveText(current, pathText);
     if (filter.name === 'upper') current = text.toUpperCase();
     else if (filter.name === 'lower') current = text.toLowerCase();
     else if (filter.name === 'trim') current = text.trim();
-    else if (filter.name === 'truncate') current = Array.from(text).slice(0, filter.argument).join('');
+    else if (filter.name === 'truncate') current = truncateCodePoints(text, filter.argument);
     else if (filter.name === 'escapeHtml') {
       current = escapeHtmlText(text);
       htmlSafe = true;
